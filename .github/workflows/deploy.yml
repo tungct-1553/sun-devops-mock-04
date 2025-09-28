@@ -1,0 +1,241 @@
+name: Deploy Data Analytics Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: 1.5.0
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Validate with Makefile
+        run: make ci-validate
+
+  lint-python:
+    name: Lint Python Code
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black pylint boto3
+
+      - name: Run code quality checks
+        run: |
+          make lint
+          make format
+
+  test-lambda:
+    name: Test Lambda Functions
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest boto3 moto
+
+      - name: Run Lambda tests
+        run: make test
+
+  plan-dev:
+    name: Terraform Plan (Dev)
+    runs-on: ubuntu-latest
+    needs: [security-scan, validate, lint-python]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ./infra
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=dev/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}"
+
+      - name: Terraform Plan
+        working-directory: ./infra
+        run: terraform plan -var-file="environments/dev/terraform.tfvars" -no-color
+        
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: [security-scan, validate, lint-python, test-lambda]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    environment: development
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Setup Python for Lambda packaging
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Package Lambda function
+        run: make ci-package
+
+      - name: Terraform Init
+        working-directory: ./infra
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=dev/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}"
+
+      - name: Terraform Plan
+        working-directory: ./infra
+        run: terraform plan -var-file="environments/dev/terraform.tfvars" -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ./infra
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Terraform Outputs
+        working-directory: ./infra
+        run: |
+          echo "### Deployment Outputs" >> $GITHUB_STEP_SUMMARY
+          terraform output -json > outputs.json
+          cat outputs.json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.value)"' >> $GITHUB_STEP_SUMMARY
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [deploy-dev]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Setup Python for Lambda packaging
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Package Lambda function
+        run: make ci-package
+
+      - name: Terraform Init
+        working-directory: ./infra
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET_PROD }}" \
+            -backend-config="key=prod/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}"
+
+      - name: Terraform Plan
+        working-directory: ./infra
+        run: terraform plan -var-file="environments/prod/terraform.tfvars" -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ./infra
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Terraform Outputs
+        working-directory: ./infra
+        run: |
+          echo "### Production Deployment Outputs" >> $GITHUB_STEP_SUMMARY
+          terraform output -json > outputs.json
+          cat outputs.json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.value)"' >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,57 @@
+[
+  {
+    "transaction_id": "TXN001",
+    "customer_id": "CUST001",
+    "product_name": "Laptop Pro 15",
+    "quantity": 1,
+    "unit_price": 1299.99,
+    "total_amount": 1299.99,
+    "transaction_date": "2024-01-15",
+    "store_location": "New York",
+    "payment_method": "credit_card"
+  },
+  {
+    "transaction_id": "TXN002",
+    "customer_id": "CUST002",
+    "product_name": "Wireless Mouse",
+    "quantity": 2,
+    "unit_price": 29.99,
+    "total_amount": 59.98,
+    "transaction_date": "2024-01-15",
+    "store_location": "California",
+    "payment_method": "debit_card"
+  },
+  {
+    "transaction_id": "TXN003",
+    "customer_id": "CUST003",
+    "product_name": "Smartphone X12",
+    "quantity": 1,
+    "unit_price": 899.99,
+    "total_amount": 899.99,
+    "transaction_date": "2024-01-16",
+    "store_location": "Texas",
+    "payment_method": "credit_card"
+  },
+  {
+    "transaction_id": "TXN004",
+    "customer_id": "CUST004",
+    "product_name": "Tablet Air",
+    "quantity": 1,
+    "unit_price": 599.99,
+    "total_amount": 599.99,
+    "transaction_date": "2024-01-16",
+    "store_location": "New York",
+    "payment_method": "paypal"
+  },
+  {
+    "transaction_id": "TXN005",
+    "customer_id": "CUST005",
+    "product_name": "Bluetooth Headphones",
+    "quantity": 3,
+    "unit_price": 199.99,
+    "total_amount": 599.97,
+    "transaction_date": "2024-01-17",
+    "store_location": "California",
+    "payment_method": "credit_card"
+  }
+]

@@ -1,0 +1,57 @@
+[
+  {
+    "transaction_id": "TXN006",
+    "customer_id": "CUST006",
+    "product_name": "Gaming Console",
+    "quantity": 1,
+    "unit_price": 499.99,
+    "total_amount": 499.99,
+    "transaction_date": "2024-02-01",
+    "store_location": "Florida",
+    "payment_method": "credit_card"
+  },
+  {
+    "transaction_id": "TXN007",
+    "customer_id": "CUST007",
+    "product_name": "Smart Watch",
+    "quantity": 2,
+    "unit_price": 299.99,
+    "total_amount": 599.98,
+    "transaction_date": "2024-02-02",
+    "store_location": "Texas",
+    "payment_method": "debit_card"
+  },
+  {
+    "transaction_id": "TXN008",
+    "customer_id": "CUST008",
+    "product_name": "Wireless Earbuds",
+    "quantity": 4,
+    "unit_price": 149.99,
+    "total_amount": 599.96,
+    "transaction_date": "2024-02-03",
+    "store_location": "New York",
+    "payment_method": "apple_pay"
+  },
+  {
+    "transaction_id": "TXN009",
+    "customer_id": "CUST001",
+    "product_name": "Keyboard Pro",
+    "quantity": 1,
+    "unit_price": 179.99,
+    "total_amount": 179.99,
+    "transaction_date": "2024-02-04",
+    "store_location": "California",
+    "payment_method": "credit_card"
+  },
+  {
+    "transaction_id": "TXN010",
+    "customer_id": "CUST009",
+    "product_name": "Monitor 4K",
+    "quantity": 1,
+    "unit_price": 399.99,
+    "total_amount": 399.99,
+    "transaction_date": "2024-02-05",
+    "store_location": "Washington",
+    "payment_method": "paypal"
+  }
+]
